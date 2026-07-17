@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ukachi-charles-lendsqr-be-test
+    runtime: docker
+    healthCheckPath: /health
+    envVars:
+      - { key: NODE_ENV, value: production }
+      - { key: DB_HOST, sync: false }
+      - { key: DB_PASSWORD, sync: false }
+      - { key: ADJUTOR_API_KEY, sync: false }
+      - { key: AUTH_TOKEN_PEPPER, generateValue: true }

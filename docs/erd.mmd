@@ -1,0 +1,7 @@
+erDiagram
+  USERS ||--|| WALLETS : owns
+  USERS ||--o{ API_TOKENS : authenticates
+  USERS ||--o{ FINANCIAL_TRANSACTIONS : initiates
+  USERS o|--o{ KARMA_CHECKS : audited_for
+  FINANCIAL_TRANSACTIONS ||--|{ LEDGER_ENTRIES : posts
+  WALLETS ||--o{ LEDGER_ENTRIES : records

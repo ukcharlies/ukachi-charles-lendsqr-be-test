@@ -1,0 +1,384 @@
+openapi: 3.1.0
+info:
+  title: Demo Credit Wallet Service
+  version: 1.0.0
+  description: Production-minded NGN wallet API. Funding and withdrawals are simulations.
+servers:
+  - url: http://localhost:3000
+    description: Local
+tags:
+  - name: Operations
+  - name: Users
+  - name: Wallets
+  - name: Transactions
+paths:
+  /health:
+    get:
+      tags: [Operations]
+      summary: Liveness check
+      responses:
+        {
+          '200':
+            {
+              description: Service is alive,
+              content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } },
+            },
+        }
+  /ready:
+    get:
+      tags: [Operations]
+      summary: Database readiness check
+      responses:
+        '200':
+          {
+            description: Database is reachable,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } },
+          }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/v1/users:
+    post:
+      tags: [Users]
+      summary: Create an eligible account, wallet, and faux API token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+            example:
+              {
+                firstName: Chuka,
+                lastName: Ukachi,
+                email: chuka@example.com,
+                phone: '+2348012345678',
+                bvn: '22212345678',
+              }
+      responses:
+        '201':
+          {
+            description: Account created; token is returned once,
+            content:
+              {
+                application/json: { schema: { $ref: '#/components/schemas/RegistrationResponse' } },
+              },
+          }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403':
+          {
+            description: An identity is blacklisted,
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: '#/components/schemas/Error' },
+                    example:
+                      {
+                        success: false,
+                        message: Account registration is not allowed,
+                        error: { code: ONBOARDING_NOT_ALLOWED, requestId: 4b6271c0 },
+                      },
+                  },
+              },
+          }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: Get authenticated user
+      security: [{ bearerAuth: [] }]
+      responses:
+        {
+          '200': { description: User returned },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        }
+  /api/v1/wallets/me:
+    get:
+      tags: [Wallets]
+      summary: Get authenticated user's wallet and balance
+      security: [{ bearerAuth: [] }]
+      responses:
+        {
+          '200':
+            {
+              description: Wallet returned,
+              content:
+                { application/json: { schema: { $ref: '#/components/schemas/WalletResponse' } } },
+            },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        }
+  /api/v1/wallet-fundings:
+    post:
+      tags: [Transactions]
+      summary: Simulate confirmed wallet funding
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema: { $ref: '#/components/schemas/FundingRequest' },
+                  example:
+                    {
+                      amount: '5000.00',
+                      sourceReference: DEMO-FUND-001,
+                      description: Demo funding,
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '201': { $ref: '#/components/responses/TransactionCreated' },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '409': { $ref: '#/components/responses/Conflict' },
+        }
+  /api/v1/transfers:
+    post:
+      tags: [Transactions]
+      summary: Transfer between registered users
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema: { $ref: '#/components/schemas/TransferRequest' },
+                  example:
+                    {
+                      recipientEmail: recipient@example.com,
+                      amount: '2500.00',
+                      description: Wallet transfer,
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '201': { $ref: '#/components/responses/TransactionCreated' },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '404': { description: Recipient not found },
+          '409': { $ref: '#/components/responses/Conflict' },
+          '422': { description: Insufficient funds or business-rule failure },
+        }
+  /api/v1/withdrawals:
+    post:
+      tags: [Transactions]
+      summary: Simulate confirmed withdrawal
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        {
+          required: true,
+          content:
+            {
+              application/json:
+                {
+                  schema: { $ref: '#/components/schemas/WithdrawalRequest' },
+                  example:
+                    {
+                      amount: '1000.00',
+                      bankCode: '058',
+                      accountNumber: '0123456789',
+                      description: Demo withdrawal,
+                    },
+                },
+            },
+        }
+      responses:
+        {
+          '201': { $ref: '#/components/responses/TransactionCreated' },
+          '400': { $ref: '#/components/responses/BadRequest' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '409': { $ref: '#/components/responses/Conflict' },
+          '422': { description: Insufficient funds },
+        }
+  /api/v1/transactions:
+    get:
+      tags: [Transactions]
+      summary: List transactions involving the authenticated user's wallet
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/TransactionType' } }
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, COMPLETED, FAILED] } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        {
+          '200': { description: Paginated transactions },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+        }
+  /api/v1/transactions/{reference}:
+    get:
+      tags: [Transactions]
+      summary: Get an involved transaction
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: reference, in: path, required: true, schema: { type: string } }]
+      responses:
+        {
+          '200': { description: Transaction returned },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '404': { description: Missing or unrelated transaction },
+        }
+components:
+  securitySchemes: { bearerAuth: { type: http, scheme: bearer, bearerFormat: opaque-token } }
+  parameters:
+    IdempotencyKey:
+      {
+        name: Idempotency-Key,
+        in: header,
+        required: true,
+        description: Unique key (8-128 safe characters); replaying the same request returns the original result.,
+        schema: { type: string, minLength: 8, maxLength: 128 },
+        example: 550e8400-e29b-41d4-a716-446655440000,
+      }
+  schemas:
+    CreateUserRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [firstName, lastName, email, phone],
+        properties:
+          {
+            firstName: { type: string, maxLength: 100 },
+            lastName: { type: string, maxLength: 100 },
+            email: { type: string, format: email, maxLength: 254 },
+            phone: { type: string, example: '+2348012345678' },
+            bvn: { type: string, pattern: '^\\d{11}$' },
+          },
+      }
+    FundingRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [amount, sourceReference],
+        properties:
+          {
+            amount: { $ref: '#/components/schemas/Amount' },
+            sourceReference: { type: string, maxLength: 100 },
+            description: { type: string, maxLength: 255 },
+          },
+      }
+    TransferRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [recipientEmail, amount],
+        properties:
+          {
+            recipientEmail: { type: string, format: email },
+            amount: { $ref: '#/components/schemas/Amount' },
+            description: { type: string, maxLength: 255 },
+          },
+      }
+    WithdrawalRequest:
+      {
+        type: object,
+        additionalProperties: false,
+        required: [amount, bankCode, accountNumber],
+        properties:
+          {
+            amount: { $ref: '#/components/schemas/Amount' },
+            bankCode: { type: string, pattern: '^\\d{3}$' },
+            accountNumber: { type: string, pattern: '^\\d{10}$' },
+            description: { type: string, maxLength: 255 },
+          },
+      }
+    Amount: { type: string, pattern: '^(?:0|[1-9]\\d*)(?:\\.\\d{1,2})?$', example: '5000.00' }
+    TransactionType: { type: string, enum: [FUNDING, TRANSFER, WITHDRAWAL] }
+    Success:
+      {
+        type: object,
+        required: [success, message, data],
+        properties: { success: { const: true }, message: { type: string }, data: { type: object } },
+      }
+    Error:
+      {
+        type: object,
+        required: [success, message, error],
+        properties:
+          {
+            success: { const: false },
+            message: { type: string },
+            error:
+              {
+                type: object,
+                required: [code, requestId],
+                properties: { code: { type: string }, requestId: { type: string } },
+              },
+          },
+      }
+    RegistrationResponse:
+      {
+        allOf: [{ $ref: '#/components/schemas/Success' }],
+        example:
+          {
+            success: true,
+            message: Account created successfully,
+            data:
+              {
+                user: { id: 550e8400-e29b-41d4-a716-446655440000, email: chuka@example.com },
+                token: secret-returned-once,
+                tokenType: Bearer,
+              },
+          },
+      }
+    WalletResponse:
+      {
+        allOf: [{ $ref: '#/components/schemas/Success' }],
+        example:
+          {
+            success: true,
+            message: Wallet retrieved successfully,
+            data:
+              {
+                id: 550e8400-e29b-41d4-a716-446655440000,
+                currency: NGN,
+                balance: '5000.00',
+                status: ACTIVE,
+              },
+          },
+      }
+  responses:
+    BadRequest:
+      {
+        description: Malformed or invalid request,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+      }
+    Unauthorized:
+      {
+        description: Missing,
+        malformed,
+        invalid,
+        expired,
+        or revoked bearer token,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+      }
+    Conflict:
+      {
+        description: Duplicate resource or idempotency conflict,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+      }
+    Unavailable:
+      {
+        description: Dependency unavailable,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+      }
+    TransactionCreated:
+      {
+        description: Transaction completed atomically,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } },
+      }
