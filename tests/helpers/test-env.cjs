@@ -1,0 +1,17 @@
+process.env.NODE_ENV = 'test';
+process.env.PORT = '3001';
+process.env.LOG_LEVEL = 'silent';
+process.env.DB_HOST = '127.0.0.1';
+process.env.DB_PORT = '3306';
+process.env.DB_NAME = 'demo_credit_test';
+process.env.DB_USER = 'demo_credit';
+process.env.DB_PASSWORD = 'demo_credit_test';
+process.env.DB_SSL = 'false';
+process.env.DB_POOL_MIN = '1';
+process.env.DB_POOL_MAX = '5';
+process.env.ADJUTOR_BASE_URL = 'https://adjutor.lendsqr.com';
+process.env.ADJUTOR_API_KEY = 'test-only';
+process.env.ADJUTOR_TIMEOUT_MS = '100';
+process.env.AUTH_TOKEN_PEPPER = 'test-pepper-that-is-at-least-32-characters';
+process.env.AUTH_TOKEN_TTL_DAYS = '30';
+process.env.CORS_ORIGINS = 'http://localhost:3000';
