@@ -30,19 +30,22 @@ export class AdjutorKarmaProvider implements KarmaProvider {
     const data = body.data;
     if (data && typeof data === 'object') {
       const record = data as Record<string, unknown>;
-      const blacklisted =
-        record.karma_identity === true ||
+      const karmaIdentity = record.karma_identity;
+      const explicitlyBlacklisted =
+        (typeof karmaIdentity === 'string' && karmaIdentity.trim().length > 0) ||
+        karmaIdentity === true ||
         record.is_blacklisted === true ||
         record.blacklisted === true;
-      if (blacklisted)
+      if (explicitlyBlacklisted)
         return {
           blacklisted: true,
           ...(typeof record.id === 'string' ? { providerReference: record.id } : {}),
           responseCode: String(status),
         };
     }
-    if (body.status === 'success' || body.success === true)
-      return { blacklisted: false, responseCode: String(status) };
+    // Adjutor documents a populated `data.karma_identity` for a blacklist match.
+    // A missing identity is not treated as clear here; only the provider's 404
+    // response is accepted as a definitive no-match in `check` above.
     throw new ExternalServiceError();
   }
 }
