@@ -36,7 +36,14 @@ export function createApp(db: Knex, provider?: KarmaProvider): Express {
   );
   app.use(express.json({ limit: '100kb' }));
   app.use(requestId);
-  app.use(pinoHttp({ logger, customProps: (req) => ({ requestId: req.id }) }));
+  app.use(
+    pinoHttp({
+      logger,
+      customProps: (req) => ({
+        requestId: (req as typeof req & { requestId?: string }).requestId ?? req.id,
+      }),
+    }),
+  );
   app.use(
     rateLimit({
       windowMs: 60_000,
@@ -59,7 +66,7 @@ export function createApp(db: Knex, provider?: KarmaProvider): Express {
   app.get('/health', (_req, res) =>
     res.json({ success: true, message: 'Service is alive', data: { status: 'ok' } }),
   );
-  app.get('/ready', async (_req, res) => {
+  app.get('/ready', async (req, res) => {
     try {
       await db.raw('SELECT 1');
       res.json({ success: true, message: 'Service is ready', data: { status: 'ready' } });
@@ -67,7 +74,7 @@ export function createApp(db: Knex, provider?: KarmaProvider): Express {
       res.status(503).json({
         success: false,
         message: 'Service is not ready',
-        error: { code: 'DATABASE_UNAVAILABLE' },
+        error: { code: 'DATABASE_UNAVAILABLE', requestId: req.requestId },
       });
     }
   });
