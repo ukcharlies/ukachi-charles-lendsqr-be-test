@@ -2,11 +2,11 @@
 
 ## Live API URL
 
-`https://<koyeb-live-url>`
+`https://ukachi-charles-lendsqr-be-test.onrender.com`
 
-- Health: `https://<koyeb-live-url>/health`
-- Readiness: `https://<koyeb-live-url>/ready`
-- Swagger UI: `https://<koyeb-live-url>/api-docs`
+- Health: `https://ukachi-charles-lendsqr-be-test.onrender.com/health`
+- Readiness: `https://ukachi-charles-lendsqr-be-test.onrender.com/ready`
+- Swagger UI: `https://ukachi-charles-lendsqr-be-test.onrender.com/api-docs`
 
 ## GitHub Repository URL
 
@@ -276,7 +276,7 @@ Open `http://localhost:5000/health`, `/ready`, and `/api-docs`. Do not use an Ai
 | `AUTH_TOKEN_PEPPER`, `AUTH_TOKEN_TTL_DAYS`                  | Faux bearer-token hashing and expiry |
 | `CORS_ORIGINS`                                              | Comma-separated browser origins      |
 
-`.env` and `ca.pem` are ignored. Production secrets belong in Koyeb secret environment variables, never GitHub or Postman.
+`.env` and `ca.pem` are ignored. Production secrets belong in Render secret environment variables, never GitHub or Postman.
 
 ## Database Migration Instructions
 
@@ -311,15 +311,15 @@ For the MySQL lifecycle suite, use an isolated database whose name ends in `_tes
 3. Configure `DB_SSL=true` and place the encoded value in `DB_SSL_CA_BASE64`.
 4. Run the controlled migration. The assessment Aiven `defaultdb` has been successfully migrated with `202607170001_initial_schema.ts`.
 
-### Koyeb
+### Render
 
-1. Create a Web Service named `ukachi-charles-lendsqr-be-test` from the GitHub repository and Dockerfile.
-2. Keep Koyeb's platform-provided `PORT`; the application binds to `0.0.0.0`.
-3. Add every `.env.example` variable as configuration, marking passwords, CA, Adjutor key, and token pepper as secrets.
-4. Deploy, then verify `/health`, `/ready`, `/api-docs`, and a safe registration attempt.
-5. Replace the Live API placeholder at the top of this README.
+1. Open the repository's `render.yaml` as a Render Blueprint.
+2. Supply `DB_PASSWORD`, `DB_SSL_CA_BASE64`, and `ADJUTOR_API_KEY` as secret values; Render generates `AUTH_TOKEN_PEPPER`.
+3. Render builds the repository Dockerfile and supplies `PORT`; the application binds to `0.0.0.0`.
+4. Apply the Blueprint and verify `/health`, `/ready`, `/api-docs`, and a safe registration attempt.
+5. Blueprint syncs deploy later changes pushed to `main`.
 
-The GitHub Actions workflow is a verification gate: it starts MySQL 8.4, migrates, lints, typechecks, tests with coverage, and builds. It does not itself keep the API online. Koyeb Free can scale to zero after inactivity, and Aiven Free is single-node and not SLA-backed; the free deployment is suitable for assessment review, not guaranteed production uptime.
+The GitHub Actions workflow is a verification gate: it starts MySQL 8.4, migrates, lints, typechecks, tests with coverage, and builds. It does not itself keep the API online. Render Free spins down after inactivity and can delay a request by 50 seconds or more while waking; Aiven's assessment database is single-node and not SLA-backed. This free deployment is suitable for assessment review, not guaranteed production uptime.
 
 ## Security Considerations
 
@@ -354,7 +354,7 @@ Custom application errors map to stable HTTP statuses and codes inside one respo
 
 ## Postman or Swagger Documentation
 
-- Swagger UI: `https://<koyeb-live-url>/api-docs`
+- Swagger UI: `https://ukachi-charles-lendsqr-be-test.onrender.com/api-docs`
 - OpenAPI source: [docs/openapi.yaml](docs/openapi.yaml)
 - Postman collection: [Demo Credit Wallet Service](docs/postman/Demo-Credit-Wallet-Service.postman_collection.json)
 - Postman environment: [Demo Credit Local](docs/postman/Demo-Credit-Local.postman_environment.json)
@@ -364,4 +364,4 @@ Import both JSON files, select **Demo Credit Local**, and run Health, Readiness,
 
 ## License or Assessment Notice
 
-This repository was created solely for the Lendsqr backend engineering assessment. It is provided for evaluation and demonstration, without warranty, and must not be treated as licensed banking or payment software. The user will manually publish the Postman collection and add its public link, the live API URL, and any requested review/video links to the final submission.
+This repository was created solely for the Lendsqr backend engineering assessment. It is provided for evaluation and demonstration, without warranty, and must not be treated as licensed banking or payment software. The user will manually publish the Postman collection and add its public link and any requested review/video links to the final submission.
