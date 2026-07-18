@@ -2,10 +2,22 @@ services:
   - type: web
     name: ukachi-charles-lendsqr-be-test
     runtime: docker
+    plan: free
     healthCheckPath: /health
     envVars:
       - { key: NODE_ENV, value: production }
-      - { key: DB_HOST, sync: false }
+      - { key: DB_HOST, value: mysql-1d6b37f0-ukcharlies-74a4.g.aivencloud.com }
+      - { key: DB_PORT, value: "17856" }
+      - { key: DB_NAME, value: defaultdb }
+      - { key: DB_USER, value: avnadmin }
       - { key: DB_PASSWORD, sync: false }
+      - { key: DB_SSL, value: "true" }
+      - { key: DB_SSL_CA_BASE64, sync: false }
+      - { key: DB_POOL_MIN, value: "2" }
+      - { key: DB_POOL_MAX, value: "10" }
+      - { key: ADJUTOR_BASE_URL, value: "https://adjutor.lendsqr.com" }
       - { key: ADJUTOR_API_KEY, sync: false }
+      - { key: ADJUTOR_TIMEOUT_MS, value: "3000" }
       - { key: AUTH_TOKEN_PEPPER, generateValue: true }
+      - { key: AUTH_TOKEN_TTL_DAYS, value: "30" }
+      - { key: CORS_ORIGINS, value: "" }
