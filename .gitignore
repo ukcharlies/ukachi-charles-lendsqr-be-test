@@ -5,4 +5,4 @@ coverage/
 *.log
 .DS_Store
 ca.pem
-
+.playwright-cli/

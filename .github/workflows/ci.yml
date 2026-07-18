@@ -35,6 +35,7 @@ jobs:
       AUTH_TOKEN_PEPPER: test-pepper-that-is-at-least-32-characters
       AUTH_TOKEN_TTL_DAYS: 30
       CORS_ORIGINS: http://localhost:3000
+      RUN_MYSQL_INTEGRATION: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

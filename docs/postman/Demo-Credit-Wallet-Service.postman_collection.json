@@ -1,0 +1,376 @@
+{
+  "info": {
+    "_postman_id": "11ed44c4-3c6c-4d69-ac3f-b75badc38f80",
+    "name": "Demo Credit Wallet Service",
+    "description": "Production-minded wallet API. Run Create user first to populate authToken. Change idempotencyKey for every materially different financial request.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "authToken", "value": "", "type": "string" },
+    { "key": "secondUserToken", "value": "", "type": "string" },
+    { "key": "recipientEmail", "value": "recipient.demo.credit@example.com" },
+    { "key": "idempotencyKey", "value": "demo-operation-001" },
+    { "key": "transactionReference", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Operations",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "Process liveness; does not query MySQL."
+          },
+          "response": [
+            {
+              "name": "Healthy",
+              "originalRequest": { "method": "GET", "header": [], "url": "{{baseUrl}}/health" },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Service is alive\",\n  \"data\": { \"status\": \"ok\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Readiness check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ready",
+            "description": "Returns 503 when MySQL cannot be reached."
+          },
+          "response": [
+            {
+              "name": "Database unavailable",
+              "originalRequest": { "method": "GET", "header": [], "url": "{{baseUrl}}/ready" },
+              "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Service is not ready\",\n  \"error\": { \"code\": \"DATABASE_UNAVAILABLE\", \"requestId\": \"example-request-id\" }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Account created', function () { pm.expect(pm.response.code).to.eql(201); });",
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data && body.data.token) {",
+                  "  pm.collectionVariables.set('authToken', body.data.token);",
+                  "  pm.environment.set('authToken', body.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Chuka\",\n  \"lastName\": \"Ukachi\",\n  \"email\": \"chuka.demo.credit@example.com\",\n  \"phone\": \"+2348012345678\",\n  \"bvn\": \"22212345678\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/users",
+            "description": "Runs Karma checks and atomically creates a user, wallet, and opaque token. The test script stores the token as authToken."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"firstName\":\"Chuka\",\"lastName\":\"Ukachi\",\"email\":\"chuka.demo.credit@example.com\",\"phone\":\"+2348012345678\"}"
+                },
+                "url": "{{baseUrl}}/api/v1/users"
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Account created successfully\",\n  \"data\": { \"user\": { \"email\": \"chuka.demo.credit@example.com\" }, \"token\": \"returned-once\", \"tokenType\": \"Bearer\" }\n}"
+            },
+            {
+              "name": "Negative - Karma unavailable",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"firstName\":\"Chuka\",\"lastName\":\"Ukachi\",\"email\":\"chuka.demo.credit@example.com\",\"phone\":\"+2348012345678\"}"
+                },
+                "url": "{{baseUrl}}/api/v1/users"
+              },
+              "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Eligibility verification is temporarily unavailable\",\n  \"error\": { \"code\": \"ELIGIBILITY_CHECK_UNAVAILABLE\", \"requestId\": \"example-request-id\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create recipient user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data && body.data.token) {",
+                  "  pm.collectionVariables.set('secondUserToken', body.data.token);",
+                  "  pm.environment.set('secondUserToken', body.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Ada\",\n  \"lastName\": \"Recipient\",\n  \"email\": \"{{recipientEmail}}\",\n  \"phone\": \"+2348098765432\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/users",
+            "description": "Helper request for transfer testing; stores secondUserToken."
+          },
+          "response": []
+        },
+        {
+          "name": "Get current user",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": [
+            {
+              "name": "Negative - missing token",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/users/me"
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Authentication required\",\n  \"error\": { \"code\": \"AUTHENTICATION_REQUIRED\", \"requestId\": \"example-request-id\" }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wallets and Transactions",
+      "item": [
+        {
+          "name": "Get wallet",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/wallets/me"
+          },
+          "response": []
+        },
+        {
+          "name": "Fund wallet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data && body.data.reference) {",
+                  "  pm.collectionVariables.set('transactionReference', body.data.reference);",
+                  "  pm.environment.set('transactionReference', body.data.reference);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"5000.00\",\n  \"sourceReference\": \"DEMO-FUND-001\",\n  \"description\": \"Demo funding\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/wallet-fundings"
+          },
+          "response": [
+            {
+              "name": "Negative - invalid amount",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Idempotency-Key", "value": "negative-funding-001" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"amount\":\"-1.00\",\"sourceReference\":\"INVALID\"}"
+                },
+                "url": "{{baseUrl}}/api/v1/wallet-fundings"
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Amount must be a positive decimal string with at most two decimal places\",\n  \"error\": { \"code\": \"VALIDATION_ERROR\", \"requestId\": \"example-request-id\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Transfer funds",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipientEmail\": \"{{recipientEmail}}\",\n  \"amount\": \"1200.00\",\n  \"description\": \"Demo transfer\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/transfers",
+            "description": "Change idempotencyKey before running after a funding request."
+          },
+          "response": [
+            {
+              "name": "Negative - insufficient funds",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Idempotency-Key", "value": "insufficient-transfer-001" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\"recipientEmail\":\"{{recipientEmail}}\",\"amount\":\"99999999.00\"}"
+                },
+                "url": "{{baseUrl}}/api/v1/transfers"
+              },
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Insufficient wallet balance\",\n  \"error\": { \"code\": \"INSUFFICIENT_FUNDS\", \"requestId\": \"example-request-id\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Withdraw funds",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": \"300.00\",\n  \"bankCode\": \"058\",\n  \"accountNumber\": \"0123456789\",\n  \"description\": \"Demo withdrawal\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/v1/withdrawals",
+            "description": "Change idempotencyKey before running after another mutation."
+          },
+          "response": []
+        },
+        {
+          "name": "List transactions",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/transactions?page=1&limit=20"
+          },
+          "response": []
+        },
+        {
+          "name": "Get transaction by reference",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{authToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/transactions/{{transactionReference}}"
+          },
+          "response": [
+            {
+              "name": "Negative - unrelated transaction",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{secondUserToken}}" }],
+                "url": "{{baseUrl}}/api/v1/transactions/{{transactionReference}}"
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Transaction not found\",\n  \"error\": { \"code\": \"NOT_FOUND\", \"requestId\": \"example-request-id\" }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+Enum user_status { ACTIVE SUSPENDED }
+Enum wallet_status { ACTIVE FROZEN }
+Enum currency { NGN }
+Enum transaction_type { FUNDING TRANSFER WITHDRAWAL }
+Enum transaction_status { PENDING COMPLETED FAILED }
+Enum ledger_entry_type { CREDIT DEBIT }
+Enum identity_type { EMAIL PHONE BVN }
+
+Table users {
+  id varchar(36) [pk, not null, note: 'UUID']
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  email varchar(254) [not null, unique, note: 'Normalized lowercase']
+  phone varchar(20) [not null, unique, note: 'Normalized Nigerian format']
+  bvn_hash varchar(64) [note: 'Nullable SHA-256 hash; raw BVN is not stored']
+  status user_status [not null, default: 'ACTIVE']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table wallets {
+  id varchar(36) [pk, not null, note: 'UUID']
+  user_id varchar(36) [not null, unique]
+  currency currency [not null, default: 'NGN']
+  balance_kobo bigint [not null, default: 0, note: 'UNSIGNED']
+  status wallet_status [not null, default: 'ACTIVE']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table api_tokens {
+  id varchar(36) [pk, not null]
+  user_id varchar(36) [not null]
+  token_hash varchar(64) [not null, unique, note: 'Peppered HMAC-SHA256']
+  expires_at timestamp [not null]
+  revoked_at timestamp
+  created_at timestamp [not null]
+
+  indexes { (user_id, expires_at) }
+}
+
+Table financial_transactions {
+  id varchar(36) [pk, not null]
+  reference varchar(40) [not null, unique]
+  type transaction_type [not null]
+  status transaction_status [not null]
+  amount_kobo bigint [not null, note: 'UNSIGNED']
+  currency currency [not null, default: 'NGN']
+  initiated_by_user_id varchar(36) [not null]
+  idempotency_key varchar(128) [not null]
+  request_fingerprint varchar(64) [not null]
+  description varchar(255)
+  metadata json
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (initiated_by_user_id, idempotency_key) [unique, name: 'uq_fin_tx_user_idempotency']
+    (initiated_by_user_id, created_at)
+  }
+}
+
+Table ledger_entries {
+  id varchar(36) [pk, not null]
+  financial_transaction_id varchar(36) [not null]
+  wallet_id varchar(36) [not null]
+  entry_type ledger_entry_type [not null]
+  amount_kobo bigint [not null, note: 'UNSIGNED']
+  balance_before_kobo bigint [not null, note: 'UNSIGNED']
+  balance_after_kobo bigint [not null, note: 'UNSIGNED']
+  created_at timestamp [not null]
+
+  indexes { (wallet_id, created_at) }
+}
+
+Table karma_checks {
+  id varchar(36) [pk, not null]
+  user_id varchar(36) [note: 'Nullable until a clear applicant is onboarded']
+  identity_type identity_type [not null]
+  identity_value_hash varchar(64) [not null]
+  is_blacklisted boolean [note: 'Nullable when provider result is unavailable']
+  provider_status varchar(32) [not null]
+  provider_reference varchar(100)
+  response_code varchar(40)
+  checked_at timestamp [not null]
+  created_at timestamp [not null]
+
+  indexes { (identity_value_hash, checked_at) }
+}
+
+Ref: wallets.user_id > users.id [delete: restrict]
+Ref: api_tokens.user_id > users.id [delete: cascade]
+Ref: financial_transactions.initiated_by_user_id > users.id [delete: restrict]
+Ref: ledger_entries.financial_transaction_id > financial_transactions.id [delete: restrict]
+Ref: ledger_entries.wallet_id > wallets.id [delete: restrict]
+Ref: karma_checks.user_id > users.id [delete: set null]

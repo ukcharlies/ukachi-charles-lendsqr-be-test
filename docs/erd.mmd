@@ -1,7 +1,78 @@
 erDiagram
-  USERS ||--|| WALLETS : owns
-  USERS ||--o{ API_TOKENS : authenticates
-  USERS ||--o{ FINANCIAL_TRANSACTIONS : initiates
-  USERS o|--o{ KARMA_CHECKS : audited_for
-  FINANCIAL_TRANSACTIONS ||--|{ LEDGER_ENTRIES : posts
-  WALLETS ||--o{ LEDGER_ENTRIES : records
+    USERS {
+        varchar_36 id PK "UUID"
+        varchar_100 first_name "NOT NULL"
+        varchar_100 last_name "NOT NULL"
+        varchar_254 email UK "NOT NULL; normalized lowercase"
+        varchar_20 phone UK "NOT NULL; normalized Nigerian format"
+        varchar_64 bvn_hash "NULL; SHA-256 hash only"
+        enum status "ACTIVE | SUSPENDED; default ACTIVE"
+        timestamp created_at "NOT NULL; UTC"
+        timestamp updated_at "NOT NULL; UTC"
+    }
+
+    WALLETS {
+        varchar_36 id PK "UUID"
+        varchar_36 user_id FK,UK "NOT NULL; users.id; ON DELETE RESTRICT"
+        enum currency "NGN; default NGN"
+        bigint_unsigned balance_kobo "NOT NULL; default 0"
+        enum status "ACTIVE | FROZEN; default ACTIVE"
+        timestamp created_at "NOT NULL; UTC"
+        timestamp updated_at "NOT NULL; UTC"
+    }
+
+    API_TOKENS {
+        varchar_36 id PK "UUID"
+        varchar_36 user_id FK "NOT NULL; users.id; ON DELETE CASCADE"
+        varchar_64 token_hash UK "NOT NULL; peppered HMAC-SHA256"
+        timestamp expires_at "NOT NULL"
+        timestamp revoked_at "NULL"
+        timestamp created_at "NOT NULL; UTC"
+    }
+
+    FINANCIAL_TRANSACTIONS {
+        varchar_36 id PK "UUID"
+        varchar_40 reference UK "NOT NULL; human-readable"
+        enum type "FUNDING | TRANSFER | WITHDRAWAL"
+        enum status "PENDING | COMPLETED | FAILED"
+        bigint_unsigned amount_kobo "NOT NULL"
+        enum currency "NGN; default NGN"
+        varchar_36 initiated_by_user_id FK "NOT NULL; users.id; ON DELETE RESTRICT"
+        varchar_128 idempotency_key "NOT NULL; composite UK with initiated_by_user_id"
+        varchar_64 request_fingerprint "NOT NULL; SHA-256"
+        varchar_255 description "NULL"
+        json metadata "NULL; sanitized operation details"
+        timestamp created_at "NOT NULL; UTC"
+        timestamp updated_at "NOT NULL; UTC"
+    }
+
+    LEDGER_ENTRIES {
+        varchar_36 id PK "UUID"
+        varchar_36 financial_transaction_id FK "NOT NULL; financial_transactions.id; RESTRICT"
+        varchar_36 wallet_id FK "NOT NULL; wallets.id; RESTRICT"
+        enum entry_type "CREDIT | DEBIT"
+        bigint_unsigned amount_kobo "NOT NULL"
+        bigint_unsigned balance_before_kobo "NOT NULL"
+        bigint_unsigned balance_after_kobo "NOT NULL"
+        timestamp created_at "NOT NULL; UTC"
+    }
+
+    KARMA_CHECKS {
+        varchar_36 id PK "UUID"
+        varchar_36 user_id FK "NULL; users.id; ON DELETE SET NULL"
+        enum identity_type "EMAIL | PHONE | BVN"
+        varchar_64 identity_value_hash "NOT NULL; raw identity not stored"
+        boolean is_blacklisted "NULL when provider result is unavailable"
+        varchar_32 provider_status "NOT NULL"
+        varchar_100 provider_reference "NULL"
+        varchar_40 response_code "NULL"
+        timestamp checked_at "NOT NULL; UTC"
+        timestamp created_at "NOT NULL; UTC"
+    }
+
+    USERS ||--o| WALLETS : "owns (service guarantees one)"
+    USERS ||--o{ API_TOKENS : "has"
+    USERS ||--o{ FINANCIAL_TRANSACTIONS : "initiates"
+    USERS o|--o{ KARMA_CHECKS : "may be linked after onboarding"
+    WALLETS ||--o{ LEDGER_ENTRIES : "records"
+    FINANCIAL_TRANSACTIONS ||--o{ LEDGER_ENTRIES : "posts"
