@@ -78,7 +78,7 @@ Table karma_checks {
   user_id varchar(36) [note: 'Nullable until a clear applicant is onboarded']
   identity_type identity_type [not null]
   identity_value_hash varchar(64) [not null]
-  is_blacklisted boolean [note: 'Nullable when provider result is unavailable']
+  is_blacklisted boolean [note: 'Nullable when provider result is unavailable or inconclusive']
   provider_status varchar(32) [not null]
   provider_reference varchar(100)
   response_code varchar(40)

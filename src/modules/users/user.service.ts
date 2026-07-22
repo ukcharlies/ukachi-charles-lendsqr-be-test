@@ -16,7 +16,7 @@ import { getEnv } from '../../config/env.js';
 import type { AuthRepository } from '../auth/auth.repository.js';
 import type { KarmaProvider } from '../karma/karma.provider.js';
 import type { KarmaRepository } from '../karma/karma.repository.js';
-import type { IdentityType } from '../karma/karma.types.js';
+import type { IdentityType, KarmaDecision } from '../karma/karma.types.js';
 import type { WalletRepository } from '../wallets/wallet.repository.js';
 import type { CreateUserInput, UserRow } from './user.types.js';
 import type { UserRepository } from './user.repository.js';
@@ -29,7 +29,15 @@ export class UserService {
     private readonly karma: KarmaRepository,
     private readonly provider: KarmaProvider,
   ) {}
-  public async create(input: CreateUserInput): Promise<{ user: UserRow; token: string }> {
+  public async create(input: CreateUserInput): Promise<{
+    user: UserRow;
+    token: string;
+    karmaCheck: {
+      status: 'VERIFIED' | 'INCONCLUSIVE';
+      message: string;
+      inconclusiveIdentities: IdentityType[];
+    };
+  }> {
     const email = normalizeEmail(input.email);
     const phone = normalizeNigerianPhone(input.phone);
     if (await this.users.findByEmail(email))
@@ -42,17 +50,22 @@ export class UserService {
       ...(input.bvn ? [{ type: 'BVN' as const, value: input.bvn }] : []),
     ];
     const hashes: string[] = [];
+    const inconclusiveIdentities: IdentityType[] = [];
     for (const identity of identities) {
       const hash = hashIdentity(identity.value);
       hashes.push(hash);
       try {
         const result = await this.provider.check(identity.value);
+        const decision: KarmaDecision =
+          result.decision ?? (result.blacklisted ? 'BLACKLISTED' : 'CLEAR');
+        const inconclusive = decision === 'INCONCLUSIVE';
+        if (inconclusive) inconclusiveIdentities.push(identity.type);
         await this.karma.record({
           id: uuid(),
           identity_type: identity.type,
           identity_value_hash: hash,
-          is_blacklisted: result.blacklisted,
-          provider_status: 'COMPLETED',
+          is_blacklisted: inconclusive ? null : result.blacklisted,
+          provider_status: inconclusive ? 'INCONCLUSIVE' : 'COMPLETED',
           provider_reference: result.providerReference ?? null,
           response_code: result.responseCode ?? null,
           checked_at: new Date(),
@@ -105,6 +118,17 @@ export class UserService {
     });
     const user = await this.users.findById(id);
     if (!user) throw new Error('Created user not found');
-    return { user, token: token.raw };
+    const inconclusive = inconclusiveIdentities.length > 0;
+    return {
+      user,
+      token: token.raw,
+      karmaCheck: {
+        status: inconclusive ? 'INCONCLUSIVE' : 'VERIFIED',
+        message: inconclusive
+          ? 'Account created, but Adjutor Karma validation was inconclusive because the test endpoint returned an empty response.'
+          : 'All supplied identities completed Karma screening.',
+        inconclusiveIdentities,
+      },
+    };
   }
 }

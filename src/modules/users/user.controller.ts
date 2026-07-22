@@ -10,10 +10,18 @@ export class UserController {
   ) {}
   public create = async (req: Request, res: Response): Promise<void> => {
     const result = await this.service.create(req.body);
+    const inconclusive = result.karmaCheck.status === 'INCONCLUSIVE';
     res.status(201).json({
       success: true,
-      message: 'Account created successfully',
-      data: { user: presentUser(result.user), token: result.token, tokenType: 'Bearer' },
+      message: inconclusive
+        ? 'Account created with inconclusive Karma validation'
+        : 'Account created successfully',
+      data: {
+        user: presentUser(result.user),
+        token: result.token,
+        tokenType: 'Bearer',
+        karmaCheck: result.karmaCheck,
+      },
     });
   };
   public me = async (req: Request, res: Response): Promise<void> => {

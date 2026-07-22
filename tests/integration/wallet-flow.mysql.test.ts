@@ -18,6 +18,7 @@ describeMySql('complete wallet API flow with MySQL', () => {
   const provider = {
     check: jest.fn<() => Promise<KarmaResult>>().mockResolvedValue({
       blacklisted: false,
+      decision: 'CLEAR',
       responseCode: '404',
     }),
   } as KarmaProvider;
@@ -94,6 +95,11 @@ describeMySql('complete wallet API flow with MySQL', () => {
       }),
     ]);
     for (const response of registrations) expect(response.status).toBe(201);
+    for (const response of registrations)
+      expect(response.body.data.karmaCheck).toMatchObject({
+        status: 'VERIFIED',
+        inconclusiveIdentities: [],
+      });
     aliceToken = registrations[0].body.data.token;
     bobToken = registrations[1].body.data.token;
     charlieToken = registrations[2].body.data.token;

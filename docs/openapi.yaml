@@ -55,7 +55,7 @@ paths:
       responses:
         '201':
           {
-            description: Account created; token is returned once,
+            description: Account created; token is returned once and Karma status is explicit,
             content:
               {
                 application/json: { schema: { $ref: '#/components/schemas/RegistrationResponse' } },
@@ -323,7 +323,28 @@ components:
       }
     RegistrationResponse:
       {
-        allOf: [{ $ref: '#/components/schemas/Success' }],
+        allOf:
+          [
+            { $ref: '#/components/schemas/Success' },
+            {
+              type: object,
+              properties:
+                {
+                  data:
+                    {
+                      type: object,
+                      required: [user, token, tokenType, karmaCheck],
+                      properties:
+                        {
+                          user: { type: object },
+                          token: { type: string },
+                          tokenType: { const: Bearer },
+                          karmaCheck: { $ref: '#/components/schemas/KarmaCheck' },
+                        },
+                    },
+                },
+            },
+          ],
         example:
           {
             success: true,
@@ -333,7 +354,25 @@ components:
                 user: { id: 550e8400-e29b-41d4-a716-446655440000, email: chuka@example.com },
                 token: secret-returned-once,
                 tokenType: Bearer,
+                karmaCheck:
+                  {
+                    status: INCONCLUSIVE,
+                    message: Account created but the Adjutor test response was empty,
+                    inconclusiveIdentities: [EMAIL, PHONE, BVN],
+                  },
               },
+          },
+      }
+    KarmaCheck:
+      {
+        type: object,
+        required: [status, message, inconclusiveIdentities],
+        properties:
+          {
+            status: { type: string, enum: [VERIFIED, INCONCLUSIVE] },
+            message: { type: string },
+            inconclusiveIdentities:
+              { type: array, items: { type: string, enum: [EMAIL, PHONE, BVN] } },
           },
       }
     WalletResponse:

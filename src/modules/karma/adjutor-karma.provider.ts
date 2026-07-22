@@ -20,13 +20,19 @@ export class AdjutorKarmaProvider implements KarmaProvider {
     } catch (error) {
       if (error instanceof ExternalServiceError) throw error;
       if (error instanceof AxiosError && error.response?.status === 404)
-        return { blacklisted: false, responseCode: '404' };
+        return { blacklisted: false, decision: 'CLEAR', responseCode: '404' };
       throw new ExternalServiceError();
     }
   }
   private interpret(payload: unknown, status: number): KarmaResult {
     if (!payload || typeof payload !== 'object') throw new ExternalServiceError();
     const body = payload as Record<string, unknown>;
+    if (Object.keys(body).length === 0)
+      return {
+        blacklisted: false,
+        decision: 'INCONCLUSIVE',
+        responseCode: String(status),
+      };
     const data = body.data;
     if (data && typeof data === 'object') {
       const record = data as Record<string, unknown>;
@@ -39,13 +45,15 @@ export class AdjutorKarmaProvider implements KarmaProvider {
       if (explicitlyBlacklisted)
         return {
           blacklisted: true,
+          decision: 'BLACKLISTED',
           ...(typeof record.id === 'string' ? { providerReference: record.id } : {}),
           responseCode: String(status),
         };
     }
-    // Adjutor documents a populated `data.karma_identity` for a blacklist match.
-    // A missing identity is not treated as clear here; only the provider's 404
-    // response is accepted as a definitive no-match in `check` above.
+    // The live Adjutor test environment has been observed returning an exact
+    // empty object for documented test identities. That one response shape is
+    // surfaced as inconclusive so the assessment can continue without claiming
+    // that screening passed. Every other unfamiliar response remains fail-closed.
     throw new ExternalServiceError();
   }
 }

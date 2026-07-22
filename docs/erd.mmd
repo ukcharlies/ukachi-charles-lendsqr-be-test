@@ -62,7 +62,7 @@ erDiagram
         varchar_36 user_id FK "NULL; users.id; ON DELETE SET NULL"
         enum identity_type "EMAIL | PHONE | BVN"
         varchar_64 identity_value_hash "NOT NULL; raw identity not stored"
-        boolean is_blacklisted "NULL when provider result is unavailable"
+        boolean is_blacklisted "NULL when provider result is unavailable or inconclusive"
         varchar_32 provider_status "NOT NULL"
         varchar_100 provider_reference "NULL"
         varchar_40 response_code "NULL"
