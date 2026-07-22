@@ -330,8 +330,6 @@ The GitHub Actions workflow is a verification gate: it starts MySQL 8.4, migrate
 - Database constraints supplement application checks.
 - Aiven TLS validates the supplied CA.
 
-See [docs/SECURITY_AND_API_REVIEW.md](docs/SECURITY_AND_API_REVIEW.md).
-
 ## Failure Handling
 
 Custom application errors map to stable HTTP statuses and codes inside one response envelope containing the request ID. Production responses hide stacks. Pino logs the same request ID for tracing. Knex rolls back failed wallet operations. `/ready` returns 503 when MySQL is unavailable. Adjutor dependency failures fail closed; only the exact observed HTTP 200 `{}` test response follows the explicit inconclusive assessment fallback. Graceful SIGTERM/SIGINT handling stops HTTP acceptance and closes the database pool.
@@ -359,8 +357,6 @@ Custom application errors map to stable HTTP statuses and codes inside one respo
 - Postman collection: [Demo Credit Wallet Service](docs/postman/Demo-Credit-Wallet-Service.postman_collection.json)
 - Postman environment: [Demo Credit Local](docs/postman/Demo-Credit-Local.postman_environment.json)
 - Public Postman documentation: [Demo Credit Wallet Service API Documentation](https://documenter.getpostman.com/view/42424191/2sBY4PNfRb)
-- Assessment review / Google Doc source: [Engineering Assessment Review](docs/ASSESSMENT_REVIEW.md)
-- Loom recording guide: [Loom Demo Script](docs/LOOM_DEMO_SCRIPT.md)
 
 Import both JSON files, select **Demo Credit Local**, and run Health, Readiness, Create user, Create recipient user, profile/wallet reads, funding, transfer, withdrawal, and history. Registration scripts store `authToken` and `secondUserToken`; funding stores `transactionReference`. Change `idempotencyKey` before every materially different mutation. Positive and negative saved examples are included, and the collection contains no backend secrets.
 
