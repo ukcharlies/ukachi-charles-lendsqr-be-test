@@ -14,7 +14,7 @@
 
 ## Project Overview
 
-Demo Credit Wallet Service is a production-minded backend assessment project for Lendsqr. It exposes a versioned REST API for eligibility-controlled account creation, NGN wallets, simulated funding and withdrawal, wallet-to-wallet transfers, balance lookup, and transaction history. It is a strict TypeScript modular monolith using Express, Knex, and MySQL; no frontend or ORM is included.
+I built Demo Credit as a small wallet backend for the Lendsqr assessment. It provides REST APIs for creating users, checking the Karma blacklist, funding and withdrawing from wallets, transferring money, and viewing transaction history. The project uses TypeScript, Express, Knex, and MySQL. It does not include a frontend or an ORM.
 
 ## Assessment Requirements Covered
 
@@ -53,7 +53,7 @@ Demo Credit Wallet Service is a production-minded backend assessment project for
 
 ## Architecture
 
-The application is a layered modular monolith. Controllers translate HTTP, services own business rules and transaction boundaries, repositories contain Knex queries, and provider adapters isolate third-party contracts. Constructor injection keeps the Karma provider and repositories mockable.
+I used a modular monolith because the project is small and the wallet operations need clear transaction boundaries. Controllers handle HTTP requests, services contain the business rules, repositories contain the Knex queries, and the Karma provider is kept separate from the rest of the application. This also makes each part easier to test.
 
 ```text
 src/
@@ -87,13 +87,13 @@ sequenceDiagram
   S-->>C: consistent success or error envelope
 ```
 
-Registration validates and normalizes input, checks uniqueness, and calls Karma for every supplied identity. A documented blacklist match rejects the request. The exact empty `{}` observed in the test environment is stored as an inconclusive audit result and surfaced in the 201 response; it is never described as a successful validation. The user, wallet, and token are then created inside one transaction. Wallet mutations derive the source wallet from the authenticated user, never a request-body user or wallet ID.
+During registration, I validate and normalize the input, check for an existing user, and send each supplied identity to the Karma API. A confirmed blacklist match rejects the request. If the test API returns the empty `{}` response I encountered, I record the check as inconclusive and include that warning in the response. The user, wallet, and token are then created in one database transaction. For wallet operations, the source wallet always comes from the authenticated user and not from a user or wallet ID supplied in the request body.
 
 ## ER Diagram
 
 ![Demo Credit Wallet ER Diagram](docs/erd.png)
 
-The diagram is rendered from [docs/erd.mmd](docs/erd.mmd), reconciled against `202607170001_initial_schema.ts`, and provided once here to avoid duplicate renderings.
+This diagram matches the tables and relationships created by my Knex migration. The Mermaid source is available in [docs/erd.mmd](docs/erd.mmd).
 
 ## Database Design
 
@@ -150,7 +150,7 @@ The middleware hashes the supplied token with `AUTH_TOKEN_PEPPER`, finds a non-r
 
 Registration calls `GET /v2/verification/karma/{identity}` for normalized email, phone, and optional BVN using the server-side Adjutor bearer key. A populated `karma_identity` or explicit blacklist flag returns `403 ONBOARDING_NOT_ALLOWED`. Provider 404 is treated as no match. The exact HTTP 200 `{}` observed in the Adjutor test environment is treated as `INCONCLUSIVE`: registration proceeds, `karma_checks.is_blacklisted` remains `NULL`, `provider_status` is `INCONCLUSIVE`, and the 201 response includes `data.karmaCheck.status = INCONCLUSIVE` plus the affected identity types. Timeout, 401/403, 429, server errors, malformed bodies, and unfamiliar non-empty payloads still return `503 ELIGIBILITY_CHECK_UNAVAILABLE`. Raw identities and full provider payloads are not persisted or logged.
 
-This is a narrow assessment fallback introduced after the documented test identity repeatedly returned `{}` and an escalation email received no resolution before submission. It is not a general production fail-open policy. Production should remove the exception after Lendsqr confirms the response contract or expose a separate provider decision state backed by an agreed SLA.
+I added this limited fallback after the documented test identity repeatedly returned `{}` and I did not receive clarification before the submission deadline. It only applies to that exact empty response. In production, I would remove it once Lendsqr confirms the response format.
 
 ## Transaction and Concurrency Handling
 
@@ -275,4 +275,4 @@ Import both JSON files, select **Demo Credit Local**, and run Health, Readiness,
 
 ## License or Assessment Notice
 
-This repository was created solely for the Lendsqr backend engineering assessment. It is provided for evaluation and demonstration, without warranty, and must not be treated as licensed banking or payment software. The user will manually publish the Postman collection and add its public link and any requested review/video links to the final submission.
+I created this repository for the Lendsqr backend engineering assessment. It is for review and demonstration and should not be treated as production banking or payment software.
