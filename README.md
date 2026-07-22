@@ -55,17 +55,6 @@ Demo Credit Wallet Service is a production-minded backend assessment project for
 
 The application is a layered modular monolith. Controllers translate HTTP, services own business rules and transaction boundaries, repositories contain Knex queries, and provider adapters isolate third-party contracts. Constructor injection keeps the Karma provider and repositories mockable.
 
-```mermaid
-flowchart LR
-  Client --> Security[Request ID, security, validation, authentication]
-  Security --> Controllers
-  Controllers --> Services
-  Services --> Repositories
-  Repositories --> MySQL[(MySQL)]
-  Services --> KarmaProvider
-  KarmaProvider --> Adjutor[Adjutor Karma API]
-```
-
 ```text
 src/
 ├── common/          errors, middleware, money/identity helpers, presenters
@@ -104,82 +93,7 @@ Registration validates and normalizes input, checks uniqueness, and calls Karma 
 
 ![Demo Credit Wallet ER Diagram](docs/erd.png)
 
-The PNG is rendered from [docs/erd.mmd](docs/erd.mmd), with a portable [DBML version](docs/erd.dbml). Both were reconciled against `202607170001_initial_schema.ts`.
-
-```mermaid
-erDiagram
-    USERS {
-        varchar_36 id PK
-        varchar_100 first_name
-        varchar_100 last_name
-        varchar_254 email UK
-        varchar_20 phone UK
-        varchar_64 bvn_hash
-        enum status
-        timestamp created_at
-        timestamp updated_at
-    }
-    WALLETS {
-        varchar_36 id PK
-        varchar_36 user_id FK,UK
-        enum currency
-        bigint_unsigned balance_kobo
-        enum status
-        timestamp created_at
-        timestamp updated_at
-    }
-    API_TOKENS {
-        varchar_36 id PK
-        varchar_36 user_id FK
-        varchar_64 token_hash UK
-        timestamp expires_at
-        timestamp revoked_at
-        timestamp created_at
-    }
-    FINANCIAL_TRANSACTIONS {
-        varchar_36 id PK
-        varchar_40 reference UK
-        enum type
-        enum status
-        bigint_unsigned amount_kobo
-        enum currency
-        varchar_36 initiated_by_user_id FK
-        varchar_128 idempotency_key
-        varchar_64 request_fingerprint
-        varchar_255 description
-        json metadata
-        timestamp created_at
-        timestamp updated_at
-    }
-    LEDGER_ENTRIES {
-        varchar_36 id PK
-        varchar_36 financial_transaction_id FK
-        varchar_36 wallet_id FK
-        enum entry_type
-        bigint_unsigned amount_kobo
-        bigint_unsigned balance_before_kobo
-        bigint_unsigned balance_after_kobo
-        timestamp created_at
-    }
-    KARMA_CHECKS {
-        varchar_36 id PK
-        varchar_36 user_id FK
-        enum identity_type
-        varchar_64 identity_value_hash
-        boolean is_blacklisted
-        varchar_32 provider_status
-        varchar_100 provider_reference
-        varchar_40 response_code
-        timestamp checked_at
-        timestamp created_at
-    }
-    USERS ||--o| WALLETS : "owns (service guarantees one)"
-    USERS ||--o{ API_TOKENS : has
-    USERS ||--o{ FINANCIAL_TRANSACTIONS : initiates
-    USERS o|--o{ KARMA_CHECKS : "may be linked"
-    WALLETS ||--o{ LEDGER_ENTRIES : records
-    FINANCIAL_TRANSACTIONS ||--o{ LEDGER_ENTRIES : posts
-```
+The diagram is rendered from [docs/erd.mmd](docs/erd.mmd), reconciled against `202607170001_initial_schema.ts`, and provided once here to avoid duplicate renderings.
 
 ## Database Design
 
@@ -356,7 +270,6 @@ Custom application errors map to stable HTTP statuses and codes inside one respo
 - OpenAPI source: [docs/openapi.yaml](docs/openapi.yaml)
 - Postman collection: [Demo Credit Wallet Service](docs/postman/Demo-Credit-Wallet-Service.postman_collection.json)
 - Postman environment: [Demo Credit Local](docs/postman/Demo-Credit-Local.postman_environment.json)
-- Public Postman documentation: [Demo Credit Wallet Service API Documentation](https://documenter.getpostman.com/view/42424191/2sBY4PNfRb)
 
 Import both JSON files, select **Demo Credit Local**, and run Health, Readiness, Create user, Create recipient user, profile/wallet reads, funding, transfer, withdrawal, and history. Registration scripts store `authToken` and `secondUserToken`; funding stores `transactionReference`. Change `idempotencyKey` before every materially different mutation. Positive and negative saved examples are included, and the collection contains no backend secrets.
 
