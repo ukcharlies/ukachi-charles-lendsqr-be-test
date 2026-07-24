@@ -5,7 +5,4 @@ coverage/
 *.log
 .DS_Store
 ca.pem
-.playwright-cli/
-docs/ASSESSMENT_REVIEW.md
-docs/LOOM_DEMO_SCRIPT.md
-docs/SECURITY_AND_API_REVIEW.md
+.private/

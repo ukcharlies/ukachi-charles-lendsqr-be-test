@@ -1,12 +1,9 @@
 .env
 .git
 .github
-.playwright-cli
+.private
 ca.pem
 coverage
 dist
 node_modules
 *.log
-docs/ASSESSMENT_REVIEW.md
-docs/LOOM_DEMO_SCRIPT.md
-docs/SECURITY_AND_API_REVIEW.md
