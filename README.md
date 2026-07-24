@@ -269,7 +269,7 @@ Custom application errors map to stable HTTP statuses and codes inside one respo
 - OpenAPI source: [docs/openapi.yaml](docs/openapi.yaml)
 - Postman collection: [Demo Credit Wallet Service](docs/postman/Demo-Credit-Wallet-Service.postman_collection.json)
 - Postman environment: [Demo Credit Local](docs/postman/Demo-Credit-Local.postman_environment.json)
-- Public Postman documentation: [Demo Credit Wallet Service API](https://documenter.getpostman.com/view/42424191/2sBY4PR1x4)
+- Public Postman documentation: [Demo Credit Wallet Service API](https://documenter.getpostman.com/view/42424191/2sBY4QszFf)
 
 Import the collection and run Health, Readiness, Create user, Create recipient user, profile/wallet reads, funding, transfer, withdrawal, and history in that order. The collection uses the live Render URL by default; select **Demo Credit Local** only when the API is running on your machine. Registration scripts store `authToken` and `secondUserToken`, financial requests generate fresh idempotency keys, and funding stores `transactionReference`. Positive and negative saved examples are included, and the collection contains no backend secrets.
 
