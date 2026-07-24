@@ -10,15 +10,3 @@ export const validateBody =
     req.body = result.data;
     next();
   };
-export const validateQuery =
-  (schema: ZodType) =>
-  (req: Request, _res: Response, next: NextFunction): void => {
-    const result = schema.safeParse(req.query);
-    if (!result.success)
-      return next(new ValidationError('Query validation failed', result.error.flatten()));
-    resAssign(req, result.data);
-    next();
-  };
-function resAssign(req: Request, value: unknown): void {
-  Object.defineProperty(req, 'validatedQuery', { value, configurable: true });
-}

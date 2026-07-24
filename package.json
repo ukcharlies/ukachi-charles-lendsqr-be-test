@@ -21,9 +21,7 @@
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --runInBand",
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand tests/integration",
     "knex:migrate": "tsx src/database/migrate.ts up",
-    "knex:migrate:rollback": "tsx src/database/migrate.ts down",
-    "knex:seed": "tsx src/database/migrate.ts seed",
-    "db:setup": "npm run knex:migrate && npm run knex:seed"
+    "knex:migrate:rollback": "tsx src/database/migrate.ts down"
   },
   "dependencies": {
     "axios": "^1.10.0",

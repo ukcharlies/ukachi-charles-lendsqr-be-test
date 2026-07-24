@@ -125,7 +125,7 @@ export class UserService {
       karmaCheck: {
         status: inconclusive ? 'INCONCLUSIVE' : 'VERIFIED',
         message: inconclusive
-          ? 'Account created, but Adjutor Karma validation was inconclusive because the test endpoint returned an empty response.'
+          ? 'Account created, but Adjutor Karma validation was inconclusive because the test endpoint returned a non-authoritative test response.'
           : 'All supplied identities completed Karma screening.',
         inconclusiveIdentities,
       },

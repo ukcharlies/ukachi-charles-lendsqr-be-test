@@ -73,7 +73,27 @@ describe('AdjutorKarmaProvider', () => {
     });
   });
 
-  test('7: fails closed for a malformed response body', async () => {
+  test('7: reports an explicitly labelled test-mode mock response as inconclusive', async () => {
+    nock(baseUrl)
+      .get('/v2/verification/karma/mock%40example.com')
+      .reply(200, {
+        status: 'success',
+        message: 'Successful',
+        'mock-response': 'This is a mock response as your app is currently in test mode.',
+        data: {
+          karma_identity: '0zspgifzbo.ga',
+          karma_identity_type: { identity_type: 'Domain' },
+        },
+      });
+
+    await expect(provider.check('mock@example.com')).resolves.toEqual({
+      blacklisted: false,
+      decision: 'INCONCLUSIVE',
+      responseCode: '200',
+    });
+  });
+
+  test('8: fails closed for a malformed response body', async () => {
     nock(baseUrl).get('/v2/verification/karma/malformed').reply(200, 'not-json-contract');
 
     await expect(provider.check('malformed')).rejects.toMatchObject({
@@ -81,7 +101,7 @@ describe('AdjutorKarmaProvider', () => {
     });
   });
 
-  test('8: fails closed when Adjutor times out', async () => {
+  test('9: fails closed when Adjutor times out', async () => {
     nock(baseUrl)
       .get('/v2/verification/karma/timeout')
       .delay(100)
@@ -95,7 +115,7 @@ describe('AdjutorKarmaProvider', () => {
     });
   });
 
-  test('9: fails closed when the API key is rejected', async () => {
+  test('10: fails closed when the API key is rejected', async () => {
     nock(baseUrl).get('/v2/verification/karma/unauthorized').reply(401, {
       status: 'error',
       message: 'Unauthenticated',
@@ -106,7 +126,7 @@ describe('AdjutorKarmaProvider', () => {
     });
   });
 
-  test('10: fails closed when Adjutor rate-limits the request', async () => {
+  test('11: fails closed when Adjutor rate-limits the request', async () => {
     nock(baseUrl).get('/v2/verification/karma/rate-limited').reply(429, {
       status: 'error',
       message: 'Too many requests',
@@ -117,7 +137,7 @@ describe('AdjutorKarmaProvider', () => {
     });
   });
 
-  test('11: fails closed for an Adjutor server error', async () => {
+  test('12: fails closed for an Adjutor server error', async () => {
     nock(baseUrl).get('/v2/verification/karma/provider-error').reply(500, {
       status: 'error',
       message: 'Internal error',

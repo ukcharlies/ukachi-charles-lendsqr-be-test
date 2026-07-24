@@ -230,4 +230,12 @@ describeMySql('complete wallet API flow with MySQL', () => {
       ).status,
     ).toBe(404);
   });
+
+  test('11: rejects invalid transaction query parameters', async () => {
+    const response = await request(app)
+      .get('/api/v1/transactions?page=0&limit=500')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
 });

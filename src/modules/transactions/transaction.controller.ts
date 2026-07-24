@@ -40,7 +40,10 @@ export class TransactionController {
     });
   };
   public list = async (req: Request, res: Response): Promise<void> => {
-    const filters = listSchema.parse(req.query);
+    const parsed = listSchema.safeParse(req.query);
+    if (!parsed.success)
+      throw new ValidationError('Query validation failed', parsed.error.flatten());
+    const filters = parsed.data;
     const result = await this.service.list(req.auth!.id, filters);
     res.json({
       success: true,

@@ -32,7 +32,7 @@ I built Demo Credit as a small wallet backend for the Lendsqr assessment. It pro
 - NGN is the only supported currency.
 - BVN is optional and stored only as a non-reversible SHA-256 hash.
 - The raw faux API token is returned once at registration; the database stores only its peppered HMAC-SHA256 digest.
-- Adjutor blacklist matches prevent onboarding. Timeout, authentication failure, rate limiting, server errors, malformed bodies, and unfamiliar non-empty payloads fail closed. The observed test-only HTTP 200 `{}` response is recorded and returned as `INCONCLUSIVE` while registration proceeds.
+- Adjutor blacklist matches prevent onboarding. Timeout, authentication failure, rate limiting, server errors, malformed bodies, and unfamiliar responses fail closed. The non-authoritative responses observed in test mode—an exact HTTP 200 `{}` or a payload explicitly labelled `mock-response`—are recorded as `INCONCLUSIVE` while registration proceeds.
 - This is a single-service assessment implementation, not licensed banking software.
 
 ## Technology Choices
@@ -80,14 +80,14 @@ sequenceDiagram
   M->>S: normalized authenticated command
   opt Registration
     S->>A: Karma lookup for email, phone, optional BVN
-    A-->>S: explicit match, no-match, empty test response, or failure
+    A-->>S: explicit match, no-match, test-mode response, or failure
   end
   S->>DB: Knex transaction and row locks
   DB-->>S: committed records or rollback
   S-->>C: consistent success or error envelope
 ```
 
-During registration, I validate and normalize the input, check for an existing user, and send each supplied identity to the Karma API. A confirmed blacklist match rejects the request. If the test API returns the empty `{}` response I encountered, I record the check as inconclusive and include that warning in the response. The user, wallet, and token are then created in one database transaction. For wallet operations, the source wallet always comes from the authenticated user and not from a user or wallet ID supplied in the request body.
+During registration, I validate and normalize the input, check for an existing user, and send each supplied identity to the Karma API. A confirmed non-mock blacklist match rejects the request. Adjutor test mode has returned both an empty `{}` and the same explicitly labelled mock blacklist record for unrelated emails, phones, BVNs, and arbitrary strings. I record either non-authoritative test response as inconclusive and include that warning in the registration response. The user, wallet, and token are then created in one database transaction. For wallet operations, the source wallet always comes from the authenticated user and not from a user or wallet ID supplied in the request body.
 
 ## ER Diagram
 
@@ -148,9 +148,9 @@ The middleware hashes the supplied token with `AUTH_TOKEN_PEPPER`, finds a non-r
 
 ## Adjutor Karma Integration
 
-Registration calls `GET /v2/verification/karma/{identity}` for normalized email, phone, and optional BVN using the server-side Adjutor bearer key. A populated `karma_identity` or explicit blacklist flag returns `403 ONBOARDING_NOT_ALLOWED`. Provider 404 is treated as no match. The exact HTTP 200 `{}` observed in the Adjutor test environment is treated as `INCONCLUSIVE`: registration proceeds, `karma_checks.is_blacklisted` remains `NULL`, `provider_status` is `INCONCLUSIVE`, and the 201 response includes `data.karmaCheck.status = INCONCLUSIVE` plus the affected identity types. Timeout, 401/403, 429, server errors, malformed bodies, and unfamiliar non-empty payloads still return `503 ELIGIBILITY_CHECK_UNAVAILABLE`. Raw identities and full provider payloads are not persisted or logged.
+Registration calls `GET /v2/verification/karma/{identity}` for normalized email, phone, and optional BVN using the server-side Adjutor bearer key. A populated non-mock `karma_identity` or explicit blacklist flag returns `403 ONBOARDING_NOT_ALLOWED`, while provider 404 is treated as no match. Adjutor's test environment currently returns the same payload for unrelated inputs and explicitly labels it `mock-response`; it previously returned an exact `{}`. Because neither response proves that the supplied identity matched the blacklist, both are treated as `INCONCLUSIVE`: registration proceeds, `karma_checks.is_blacklisted` remains `NULL`, `provider_status` is `INCONCLUSIVE`, and the 201 response identifies the affected identity types. Timeout, 401/403, 429, server errors, malformed bodies, and unmarked unfamiliar payloads still return `503 ELIGIBILITY_CHECK_UNAVAILABLE`. Raw identities and full provider payloads are not persisted or logged.
 
-I added this limited fallback after the documented test identity repeatedly returned `{}` and I did not receive clarification before the submission deadline. It only applies to that exact empty response. In production, I would remove it once Lendsqr confirms the response format.
+I added this limited fallback after testing showed non-authoritative sandbox responses and I did not receive clarification before the submission deadline. It applies only to the exact empty object and payloads explicitly marked by Adjutor as mock responses. In production, I would remove it once Lendsqr confirms the live response contract.
 
 ## Transaction and Concurrency Handling
 
@@ -197,8 +197,6 @@ Open `http://localhost:5000/health`, `/ready`, and `/api-docs`. Do not use an Ai
 ```bash
 npm run knex:migrate
 npm run knex:migrate:rollback
-npm run knex:seed
-npm run db:setup
 ```
 
 The controlled production migration command is `node dist/database/migrate.js up`. Run it once before the new application revision receives traffic; do not let every replica race to migrate.
@@ -214,7 +212,7 @@ npm run test:coverage
 npm run build
 ```
 
-For the MySQL lifecycle suite, use an isolated database whose name ends in `_test`, migrate it, set `RUN_MYSQL_INTEGRATION=true`, and run `npm test`. The suite creates unique users, exercises the full wallet lifecycle, and cleans up afterward. Current verified result: 46 tests passed with 89.27% statements, 63.26% branches, 92.70% functions, and 93.49% lines.
+For the MySQL lifecycle suite, use an isolated database whose name ends in `_test`, migrate it, set `RUN_MYSQL_INTEGRATION=true`, and run `npm test`. The suite creates unique users, exercises the full wallet lifecycle, and cleans up afterward. Current verified result: 49 tests passed with 91.32% statements, 64.42% branches, 96.77% functions, and 95.80% lines.
 
 ## Deployment Instructions
 
@@ -240,20 +238,21 @@ The GitHub Actions workflow is a verification gate: it starts MySQL 8.4, migrate
 - Helmet, restricted CORS, JSON size limit, rate limiting, strict Zod schemas, and parameterized Knex queries.
 - Opaque 256-bit user tokens; only peppered HMAC hashes are stored.
 - No raw BVN, database password, Adjutor key, token, full account number, or sensitive provider payload in logs.
+- `.dockerignore` excludes local secrets, certificates, build output, and private assessment notes from the image build context.
 - Server-side ownership; source user and wallet IDs are never accepted from the body.
 - Database constraints supplement application checks.
 - Aiven TLS validates the supplied CA.
 
 ## Failure Handling
 
-Custom application errors map to stable HTTP statuses and codes inside one response envelope containing the request ID. Production responses hide stacks. Pino logs the same request ID for tracing. Knex rolls back failed wallet operations. `/ready` returns 503 when MySQL is unavailable. Adjutor dependency failures fail closed; only the exact observed HTTP 200 `{}` test response follows the explicit inconclusive assessment fallback. Graceful SIGTERM/SIGINT handling stops HTTP acceptance and closes the database pool.
+Custom application errors map to stable HTTP statuses and codes inside one response envelope containing the request ID. Production responses hide stacks. Pino logs the same request ID for tracing. Knex rolls back failed wallet operations. `/ready` returns 503 when MySQL is unavailable. Adjutor dependency failures fail closed; only an exact `{}` or an explicitly labelled test-mode mock response follows the inconclusive assessment fallback. Graceful SIGTERM/SIGINT handling stops HTTP acceptance and closes the database pool.
 
 ## Trade-offs
 
 - Funding and withdrawal are synchronous simulations rather than external settlements.
 - SHA-256 BVN storage prevents recovery but a keyed hash or envelope encryption would improve protection and controlled lookup.
 - The ledger is append-only by service convention; MySQL permissions/triggers could further enforce immutability.
-- The Adjutor adapter retains fail-closed dependency handling but permits the exact empty test response with a visible `INCONCLUSIVE` warning. This meets the submission constraint without representing the identity as cleared.
+- The Adjutor adapter retains fail-closed dependency handling but permits non-authoritative, explicitly identifiable test responses with a visible `INCONCLUSIVE` warning. This allows sandbox testing without representing the identity as cleared.
 - The modular monolith favors clarity and transactional consistency over premature microservices.
 
 ## Production Improvements
@@ -272,7 +271,7 @@ Custom application errors map to stable HTTP statuses and codes inside one respo
 - Postman environment: [Demo Credit Local](docs/postman/Demo-Credit-Local.postman_environment.json)
 - Public Postman documentation: [Demo Credit Wallet Service API](https://documenter.getpostman.com/view/42424191/2sBY4PR1x4)
 
-Import both JSON files, select **Demo Credit Local**, and run Health, Readiness, Create user, Create recipient user, profile/wallet reads, funding, transfer, withdrawal, and history. Registration scripts store `authToken` and `secondUserToken`; funding stores `transactionReference`. Change `idempotencyKey` before every materially different mutation. Positive and negative saved examples are included, and the collection contains no backend secrets.
+Import the collection and run Health, Readiness, Create user, Create recipient user, profile/wallet reads, funding, transfer, withdrawal, and history in that order. The collection uses the live Render URL by default; select **Demo Credit Local** only when the API is running on your machine. Registration scripts store `authToken` and `secondUserToken`, financial requests generate fresh idempotency keys, and funding stores `transactionReference`. Positive and negative saved examples are included, and the collection contains no backend secrets.
 
 ## License or Assessment Notice
 

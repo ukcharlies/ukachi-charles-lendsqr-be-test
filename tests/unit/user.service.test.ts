@@ -58,7 +58,7 @@ describe('UserService Karma fallback', () => {
     expect(result.karmaCheck).toEqual({
       status: 'INCONCLUSIVE',
       message:
-        'Account created, but Adjutor Karma validation was inconclusive because the test endpoint returned an empty response.',
+        'Account created, but Adjutor Karma validation was inconclusive because the test endpoint returned a non-authoritative test response.',
       inconclusiveIdentities: ['EMAIL', 'PHONE'],
     });
     expect(records).toHaveLength(2);

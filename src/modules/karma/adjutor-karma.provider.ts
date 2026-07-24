@@ -27,7 +27,8 @@ export class AdjutorKarmaProvider implements KarmaProvider {
   private interpret(payload: unknown, status: number): KarmaResult {
     if (!payload || typeof payload !== 'object') throw new ExternalServiceError();
     const body = payload as Record<string, unknown>;
-    if (Object.keys(body).length === 0)
+    const isTestModeMock = typeof body['mock-response'] === 'string';
+    if (Object.keys(body).length === 0 || isTestModeMock)
       return {
         blacklisted: false,
         decision: 'INCONCLUSIVE',
@@ -50,10 +51,10 @@ export class AdjutorKarmaProvider implements KarmaProvider {
           responseCode: String(status),
         };
     }
-    // The live Adjutor test environment has been observed returning an exact
-    // empty object for documented test identities. That one response shape is
-    // surfaced as inconclusive so the assessment can continue without claiming
-    // that screening passed. Every other unfamiliar response remains fail-closed.
+    // Adjutor has returned both an empty object and an explicitly labelled mock
+    // record in test mode. Neither response proves that the supplied identity
+    // matched the blacklist, so both are surfaced as inconclusive. Unmarked
+    // unfamiliar responses remain fail-closed.
     throw new ExternalServiceError();
   }
 }

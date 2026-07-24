@@ -15,10 +15,8 @@ try {
     console.log(
       migrations.length ? `Rolled back: ${migrations.join(', ')}` : 'Nothing to roll back',
     );
-  } else if (command === 'seed') {
-    console.log('No seed data is required for Demo Credit');
   } else {
-    throw new Error('Expected migration command: up, down, or seed');
+    throw new Error('Expected migration command: up or down');
   }
 } finally {
   await db.destroy();

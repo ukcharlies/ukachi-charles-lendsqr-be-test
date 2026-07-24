@@ -23,6 +23,5 @@ export function databaseConfig(): Knex.Config {
     },
     pool: { min: e.DB_POOL_MIN, max: e.DB_POOL_MAX },
     migrations: { directory: './src/database/migrations', extension: 'ts' },
-    seeds: { directory: './src/database/seeds', extension: 'ts' },
   };
 }

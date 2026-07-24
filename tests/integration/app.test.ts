@@ -46,6 +46,16 @@ describe('general API behavior', () => {
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
+  test('registration rejects an invalid phone before database use', async () => {
+    const response = await request(app).post('/api/v1/users').send({
+      firstName: 'A',
+      lastName: 'B',
+      email: 'a@example.com',
+      phone: 'not-a-phone',
+    });
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
   test('Swagger UI is exposed', async () =>
     expect((await request(app).get('/api-docs/')).status).toBe(200));
 });
